@@ -82,6 +82,16 @@ def _explain(best: RouteCandidate, other: RouteCandidate) -> str:
     return f"{head} {risk}; {_time_clause(b, o)}"
 
 
+def _comparison_route(best: RouteCandidate, others: list[RouteCandidate]) -> RouteCandidate:
+    """The route the reason argues against. If the winner is not the fastest route, the
+    question a driver asks is "why not the fastest one?", so compare with that; otherwise
+    compare with the runner-up."""
+    fastest = min(others, key=lambda c: c.summary.duration_s)
+    if fastest.summary.duration_s < best.summary.duration_s:
+        return fastest
+    return others[0]
+
+
 def rank_routes(candidates: Sequence[RouteCandidate]) -> Recommendation:
     if not candidates:
         raise ValueError("no routes to rank")
@@ -93,7 +103,7 @@ def rank_routes(candidates: Sequence[RouteCandidate]) -> Recommendation:
     if len(ranked) == 1:
         reason = f"{best.name}: only one distinct route was found"
     else:
-        reason = _explain(best, ranked[1])
+        reason = _explain(best, _comparison_route(best, ranked[1:]))
     return Recommendation(
         ranked_ids=[c.route_id for c in ranked],
         recommended_id=best.route_id,

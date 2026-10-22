@@ -12,10 +12,10 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import httpx
-from django.core.cache import cache
 
 from routing_app.geo import LatLon
 
+from . import forecast_cache
 from .http import ProviderError, get_json
 
 PROVIDER = "open-meteo"
@@ -62,7 +62,8 @@ def horizon_end(now: datetime | None = None) -> datetime:
 
 
 def parse_location(block: dict[str, Any]) -> dict[date, dict[str, Any]]:
-    """Split one location's hourly block into per-UTC-day chunks (the cache unit)."""
+    """Split one location's hourly block into per-UTC-day chunks (the cache unit), with values
+    as JSON-friendly [wind, gust, rain, snow] lists (None for a model gap)."""
     hourly = block["hourly"]
     days: dict[date, dict[str, Any]] = {}
     for i, stamp in enumerate(hourly["time"]):
@@ -77,7 +78,12 @@ def parse_location(block: dict[str, Any]) -> dict[date, dict[str, Any]]:
                 rain_in=float(rain or 0.0) + float(showers or 0.0),
                 snow_in=float(snow or 0.0),
             )
-        days.setdefault(hour.date(), {})[hour.isoformat()] = entry
+        days.setdefault(hour.date(), {})[hour.isoformat()] = entry and [
+            entry.wind_mph,
+            entry.gust_mph,
+            entry.rain_in,
+            entry.snow_in,
+        ]
     return days
 
 
@@ -115,7 +121,7 @@ async def fetch_forecasts(
     unique = list(dict.fromkeys(rounded))
 
     keys = {(p, d): _cache_key(p, d) for p in unique for d in days}
-    cached: dict[str, Any] = await cache.aget_many(list(keys.values()))
+    cached = await forecast_cache.load(list(keys.values()))
     missing = [p for p in unique if any(keys[(p, d)] not in cached for d in days)]
 
     if missing:
@@ -132,7 +138,7 @@ async def fetch_forecasts(
             for p, by_day in zip(chunk, parsed, strict=True):
                 for d in days:
                     fresh[keys[(p, d)]] = by_day.get(d, {})
-        await cache.aset_many(fresh, CACHE_TTL_S)
+        await forecast_cache.store(fresh, CACHE_TTL_S)
         cached.update(fresh)
 
     by_point: dict[LatLon, Forecast] = {}
@@ -140,6 +146,6 @@ async def fetch_forecasts(
         forecast: Forecast = {}
         for d in days:
             for stamp, values in cached[keys[(p, d)]].items():
-                forecast[datetime.fromisoformat(stamp)] = values
+                forecast[datetime.fromisoformat(stamp)] = values and HourValues(*values)
         by_point[p] = forecast
     return [by_point[p] for p in rounded]

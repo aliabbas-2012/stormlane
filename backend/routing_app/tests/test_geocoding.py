@@ -43,7 +43,7 @@ def test_photon_lists_us_results_first_with_readable_labels() -> None:
     assert places[0] == Place("Paris, Texas", 33.6, -95.5)
     assert seen[0].url.host == "photon.komoot.io"
     assert seen[0].url.params["q"] == "paris"
-    assert "lat" in seen[0].url.params  # US location bias.
+    assert "lat" not in seen[0].url.params  # No point bias; US-first ordering instead.
 
 
 def test_tomtom_is_primary_and_falls_back_to_photon(settings: Any) -> None:

@@ -2,8 +2,13 @@ import asyncio
 from datetime import UTC, datetime
 
 import httpx
+import pytest
 
 from routing_app.providers.weather import HourValues, fetch_forecasts
+
+# The forecast cache is a Postgres table; transaction=True because the ORM runs in a worker
+# thread (sync_to_async) with its own connection.
+pytestmark = pytest.mark.django_db(transaction=True)
 
 START = datetime(2026, 10, 23, 22, tzinfo=UTC)
 END = datetime(2026, 10, 24, 1, tzinfo=UTC)  # Spans two UTC days.

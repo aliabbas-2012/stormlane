@@ -133,6 +133,22 @@ def test_full_tie_keeps_provider_order() -> None:
 # --- Edge cases ------------------------------------------------------------------------------
 
 
+def test_reason_compares_against_fastest_route_when_it_loses() -> None:
+    fast_but_stormy = cand("A", summary(severe=38, hours=9))
+    calm = cand("B", summary(hours=10))
+    calm_slower = cand("C", summary(hours=10.5))
+    rec = rank_routes([fast_but_stormy, calm, calm_slower])
+    assert rec.ranked_ids == ["B", "C", "A"]
+    assert rec.reason == "Route B: 0 severe miles (Route A has 38); 1 h 00 min longer"
+
+
+def test_reason_compares_against_runner_up_when_winner_is_fastest() -> None:
+    rec = rank_routes(
+        [cand("A", summary(hours=9)), cand("B", summary(hours=10)), cand("C", summary(severe=5))]
+    )
+    assert rec.reason == "Route A: same risk profile as Route B, 1 h 00 min shorter"
+
+
 def test_every_route_no_travel_flags_no_safe_route_but_still_ranks() -> None:
     a = cand("A", summary(no_travel=40))
     b = cand("B", summary(no_travel=12))

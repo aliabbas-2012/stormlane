@@ -15,8 +15,8 @@ from .http import ProviderError, get_json
 
 logger = logging.getLogger(__name__)
 
-# Geographic centre of the contiguous US: results are biased here, not filtered.
-US_BIAS = (39.83, -98.58)
+# "US bias" is applied by listing US matches first, not by a point bias: biasing towards the
+# geographic centre of the US (Kansas) ranked Minneapolis, KS above Minneapolis, MN.
 MAX_RESULTS = 6
 CACHE_TTL_S = 24 * 60 * 60
 
@@ -59,7 +59,7 @@ def photon_label(props: dict[str, Any]) -> str:
 
 
 async def search_photon(client: httpx.AsyncClient, query: str) -> list[Place]:
-    params = {"q": query, "limit": 10, "lang": "en", "lat": US_BIAS[0], "lon": US_BIAS[1]}
+    params = {"q": query, "limit": 15, "lang": "en"}
     data = await get_json(client, "photon", "https://photon.komoot.io/api/", params)
     places = []
     for feature in data.get("features", []):
@@ -82,9 +82,7 @@ async def search_tomtom(client: httpx.AsyncClient, query: str, api_key: str) -> 
     params = {
         "key": api_key,
         "typeahead": "true",
-        "limit": 10,
-        "lat": US_BIAS[0],
-        "lon": US_BIAS[1],
+        "limit": 15,
         "idxSet": "Geo,PAD,Addr,Str,POI",
     }
     data = await get_json(client, "tomtom", url, params)
