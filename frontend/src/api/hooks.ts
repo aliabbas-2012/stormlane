@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query'
 
 import { useDebouncedValue } from '../lib/useDebouncedValue'
-import type { Analysis, AnalyzeRequest, Place } from '../types/api'
+import type { Analysis, AnalyzeRequest, Heatmap, Place } from '../types/api'
 import { apiFetch } from './client'
 
 const GEOCODE_DEBOUNCE_MS = 300
@@ -35,5 +35,21 @@ export function useAnalyze() {
   return useMutation({
     mutationFn: (body: AnalyzeRequest) =>
       apiFetch<Analysis>('/api/analyze', { method: 'POST', body: JSON.stringify(body) }),
+  })
+}
+
+/** Requested as soon as an analysis exists, so routes render first and the heatmap
+ * streams in behind them. One request per analysis; the slider never refetches. */
+export function useHeatmap(analysisId: string | null) {
+  return useQuery({
+    queryKey: ['heatmap', analysisId],
+    queryFn: () =>
+      apiFetch<Heatmap>('/api/heatmap', {
+        method: 'POST',
+        body: JSON.stringify({ analysis_id: analysisId }),
+      }),
+    enabled: analysisId !== null,
+    staleTime: Infinity,
+    retry: 1,
   })
 }

@@ -1,15 +1,19 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
-import { useAnalyze, useHealth } from './api/hooks'
+import { useAnalyze, useHealth, useHeatmap } from './api/hooks'
 import { type CheckpointRef, MapView } from './components/MapView'
 import { Notices } from './components/Notices'
 import { RouteCards } from './components/RouteCards'
 import { RouteCardsSkeleton } from './components/RouteCardsSkeleton'
 import { RouteDetail } from './components/RouteDetail'
+import { TimeSlider } from './components/TimeSlider'
 import { Toast } from './components/Toast'
 import { TripForm } from './components/TripForm'
 import { formatDateTime, formatLbs } from './lib/format'
-import type { AnalyzeRequest } from './types/api'
+import { HEATMAP_HOURS } from './lib/heatmap'
+import type { AnalyzeRequest, HeatmapMetric } from './types/api'
+
+const PLAY_FRAME_MS = 250
 
 /** Selections are keyed by analysis id, so a new analysis resets them without an effect. */
 interface Selection {
@@ -23,6 +27,10 @@ export default function App() {
   const analyze = useAnalyze()
   const [selection, setSelection] = useState<Selection | null>(null)
   const [dismissedError, setDismissedError] = useState<unknown>(null)
+  const [hour, setHour] = useState(0)
+  const [playing, setPlaying] = useState(false)
+  const [metric, setMetric] = useState<HeatmapMetric>('risk')
+  const [showHeatmap, setShowHeatmap] = useState(true)
 
   const analysis = analyze.data ?? null
   const current =
@@ -30,6 +38,17 @@ export default function App() {
   const selectedRouteId = current?.routeId ?? analysis?.recommended_route_id ?? null
   const selectedCheckpoint = current?.checkpoint ?? null
   const selectedRoute = analysis?.routes.find((r) => r.id === selectedRouteId) ?? null
+  const shownAnalysis = analyze.isPending ? null : analysis
+  const heatmap = useHeatmap(shownAnalysis?.analysis_id ?? null)
+  const heatmapData =
+    heatmap.data && heatmap.data.analysis_id === shownAnalysis?.analysis_id ? heatmap.data : null
+  const hourIso = heatmapData?.hours[hour] ?? null
+
+  useEffect(() => {
+    if (!playing) return
+    const timer = window.setInterval(() => setHour((h) => (h + 1) % HEATMAP_HOURS), PLAY_FRAME_MS)
+    return () => window.clearInterval(timer)
+  }, [playing])
 
   const select = useCallback(
     (routeId: string | null, checkpoint: CheckpointRef | null) => {
@@ -40,6 +59,8 @@ export default function App() {
   const dismissError = useCallback(() => setDismissedError(analyze.error), [analyze.error])
 
   function submit(request: AnalyzeRequest) {
+    setHour(0)
+    setPlaying(false)
     analyze.mutate(request)
   }
 
@@ -109,7 +130,14 @@ export default function App() {
 
       <main className="relative order-1 h-[55vh] shrink-0 md:order-2 md:h-full md:flex-1">
         <MapView
-          analysis={analyze.isPending ? null : analysis}
+          analysis={shownAnalysis}
+          heatmap={{
+            data: heatmapData,
+            hour,
+            metric,
+            visible: showHeatmap,
+            at: hourIso ? new Date(hourIso) : null,
+          }}
           selectedRouteId={selectedRouteId}
           selectedCheckpoint={selectedCheckpoint}
           onSelectRoute={(routeId) => select(routeId, null)}
@@ -117,6 +145,25 @@ export default function App() {
             select(checkpoint?.routeId ?? selectedRouteId, checkpoint)
           }
         />
+        {shownAnalysis && (
+          <div className="absolute bottom-8 left-1/2 z-10 -translate-x-1/2">
+            <TimeSlider
+              hours={heatmapData?.hours ?? []}
+              hour={hour}
+              onHour={(h) => {
+                setPlaying(false)
+                setHour(h)
+              }}
+              playing={playing}
+              onTogglePlay={() => setPlaying((p) => !p)}
+              metric={metric}
+              onMetric={setMetric}
+              visible={showHeatmap}
+              onVisible={setShowHeatmap}
+              status={heatmapData ? 'ready' : heatmap.isError ? 'error' : 'loading'}
+            />
+          </div>
+        )}
       </main>
 
       {errorMessage && <Toast message={errorMessage} onDismiss={dismissError} />}

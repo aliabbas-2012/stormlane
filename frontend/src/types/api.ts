@@ -85,3 +85,18 @@ export interface AnalyzeRequest {
   load_lbs: number
   interval_miles: IntervalMiles
 }
+
+/** POST /api/heatmap: columnar, one row per point, 49 hourly values per row. */
+export interface Heatmap {
+  analysis_id: string
+  cell_deg: number
+  points: [number, number][]
+  hours: string[]
+  /** Risk level per hour; -1 where the model has no data. */
+  risk: number[][]
+  wind: number[][]
+  rain: number[][]
+  snow: number[][]
+}
+
+export type HeatmapMetric = 'risk' | 'wind' | 'rain' | 'snow'

@@ -56,3 +56,7 @@ class AnalyzeRequestSerializer(serializers.Serializer):
 
 class GeocodeQuerySerializer(serializers.Serializer):
     q = serializers.CharField(min_length=2, max_length=200, trim_whitespace=True)
+
+
+class HeatmapRequestSerializer(serializers.Serializer):
+    analysis_id = serializers.RegexField(r"^[0-9a-f]{32}$")

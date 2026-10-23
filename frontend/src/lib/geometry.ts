@@ -88,3 +88,17 @@ export function routesBounds(analysis: Analysis): [Position, Position] {
     [maxX, maxY],
   ]
 }
+
+/** Position after `elapsedS` seconds of driving, clamped to the route's ends. */
+export function positionAtElapsed(route: Route, elapsedS: number): Position {
+  const times = route.geometry_elapsed_s
+  const { coordinates } = route.geometry
+  if (elapsedS <= 0) return coordinates[0]
+  if (elapsedS >= times[times.length - 1]) return coordinates[coordinates.length - 1]
+  const i = locate(times, elapsedS)
+  const span = times[i + 1] - times[i]
+  const t = span > 0 ? (elapsedS - times[i]) / span : 0
+  const [x1, y1] = coordinates[i]
+  const [x2, y2] = coordinates[i + 1]
+  return [x1 + (x2 - x1) * t, y1 + (y2 - y1) * t]
+}

@@ -14,9 +14,11 @@ import Map, {
 
 import { checkpointFeatures, routesBounds, segmentFeatures } from '../lib/geometry'
 import { RISK_COLOR_EXPRESSION } from '../lib/risk'
-import type { Analysis } from '../types/api'
+import type { Analysis, Heatmap, HeatmapMetric } from '../types/api'
 import { CheckpointPopup } from './CheckpointPopup'
+import { HeatmapLayer } from './HeatmapLayer'
 import { Legend } from './Legend'
+import { TruckMarkers } from './TruckMarkers'
 
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty'
 // Continental US until an analysis exists.
@@ -28,8 +30,18 @@ export interface CheckpointRef {
   index: number
 }
 
+export interface HeatmapView {
+  data: Heatmap | null
+  hour: number
+  metric: HeatmapMetric
+  visible: boolean
+  /** UTC instant the slider points at; drives the truck markers. */
+  at: Date | null
+}
+
 interface Props {
   analysis: Analysis | null
+  heatmap: HeatmapView
   selectedRouteId: string | null
   selectedCheckpoint: CheckpointRef | null
   onSelectRoute: (routeId: string) => void
@@ -38,6 +50,7 @@ interface Props {
 
 export function MapView({
   analysis,
+  heatmap,
   selectedRouteId,
   selectedCheckpoint,
   onSelectRoute,
@@ -53,7 +66,11 @@ export function MapView({
 
   useEffect(() => {
     if (!analysis) return
-    mapRef.current?.fitBounds(routesBounds(analysis), { padding: 60, duration: 800 })
+    // Extra bottom padding keeps the routes clear of the time slider panel.
+    mapRef.current?.fitBounds(routesBounds(analysis), {
+      padding: { top: 60, right: 60, bottom: 170, left: 60 },
+      duration: 800,
+    })
   }, [analysis])
 
   const isSelected: ExpressionSpecification = ['==', ['get', 'routeId'], selectedRouteId ?? '']
@@ -132,6 +149,20 @@ export function MapView({
             }}
           />
         </Source>
+      )}
+
+      {analysis && heatmap.data?.analysis_id === analysis.analysis_id && (
+        <HeatmapLayer
+          heatmap={heatmap.data}
+          hour={heatmap.hour}
+          metric={heatmap.metric}
+          visible={heatmap.visible}
+          beforeId="routes-dim"
+        />
+      )}
+
+      {analysis && heatmap.at && (
+        <TruckMarkers analysis={analysis} at={heatmap.at} selectedRouteId={selectedRouteId} />
       )}
 
       {analysis && (

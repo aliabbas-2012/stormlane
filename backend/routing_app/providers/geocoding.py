@@ -1,5 +1,5 @@
 """Place search for autocomplete and final lookup. TomTom Search when a key is configured,
-otherwise Photon (wha), which is built for search-as-you-type (Nominatim forbids it)."""
+otherwise Photon (komoot), which is built for search-as-you-type (Nominatim forbids it)."""
 
 import hashlib
 import logging

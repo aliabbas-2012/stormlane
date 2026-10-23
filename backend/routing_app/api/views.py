@@ -6,8 +6,9 @@ from rest_framework.views import APIView
 from routing_app.providers.geocoding import geocode
 from routing_app.providers.http import make_client
 from routing_app.services.analyze import AnalyzeParams, analyze
+from routing_app.services.heatmap import build_heatmap
 
-from .serializers import AnalyzeRequestSerializer, GeocodeQuerySerializer
+from .serializers import AnalyzeRequestSerializer, GeocodeQuerySerializer, HeatmapRequestSerializer
 
 
 class HealthView(APIView):
@@ -47,3 +48,10 @@ class AnalyzeView(APIView):
         )
         # Sync DRF view; the service fans out to external APIs concurrently on its own loop.
         return Response(async_to_sync(analyze)(params))
+
+
+class HeatmapView(APIView):
+    def post(self, request: Request) -> Response:
+        body = HeatmapRequestSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        return Response(async_to_sync(build_heatmap)(body.validated_data["analysis_id"]))
