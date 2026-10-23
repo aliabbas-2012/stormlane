@@ -66,11 +66,12 @@ export function MapView({
 
   useEffect(() => {
     if (!analysis) return
-    // Extra bottom padding keeps the routes clear of the time slider panel.
-    mapRef.current?.fitBounds(routesBounds(analysis), {
-      padding: { top: 60, right: 60, bottom: 170, left: 60 },
-      duration: 800,
-    })
+    // Keep the routes clear of the time slider (desktop) or of the bottom sheet plus slider (phone).
+    const desktop = window.matchMedia('(min-width: 768px)').matches
+    const padding = desktop
+      ? { top: 60, right: 60, bottom: 170, left: 60 }
+      : { top: 40, right: 24, bottom: Math.round(window.innerHeight * 0.45) + 130, left: 24 }
+    mapRef.current?.fitBounds(routesBounds(analysis), { padding, duration: 800 })
   }, [analysis])
 
   const isSelected: ExpressionSpecification = ['==', ['get', 'routeId'], selectedRouteId ?? '']
@@ -188,7 +189,8 @@ export function MapView({
         </Popup>
       )}
 
-      <div className="absolute bottom-6 left-3">
+      {/* On phones the legend lives in the bottom sheet instead. */}
+      <div className="absolute bottom-6 left-3 hidden md:block">
         <Legend />
       </div>
     </Map>

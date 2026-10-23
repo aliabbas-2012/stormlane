@@ -1,0 +1,15 @@
+**/node_modules
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/.env
+**/.env.local
+frontend/dist
+backend/staticfiles
+backend/frontend_dist
+.git
+.vscode
+.idea
+*PROMPT*.md
+*LOOM*.md
