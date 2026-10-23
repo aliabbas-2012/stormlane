@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react'
 
 import { useAnalyze, useHealth, useHeatmap } from './api/hooks'
+import { Legend } from './components/Legend'
 import { type CheckpointRef, MapView } from './components/MapView'
 import { Notices } from './components/Notices'
 import { RouteCards } from './components/RouteCards'
@@ -14,6 +15,9 @@ import { HEATMAP_HOURS } from './lib/heatmap'
 import type { AnalyzeRequest, HeatmapMetric } from './types/api'
 
 const PLAY_FRAME_MS = 250
+// Phone layout: the panel is a bottom sheet over a full-screen map.
+const SHEET_PEEK = '45%'
+const SHEET_OPEN = '88%'
 
 /** Selections are keyed by analysis id, so a new analysis resets them without an effect. */
 interface Selection {
@@ -31,6 +35,8 @@ export default function App() {
   const [playing, setPlaying] = useState(false)
   const [metric, setMetric] = useState<HeatmapMetric>('risk')
   const [showHeatmap, setShowHeatmap] = useState(true)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const resultsRef = useRef<HTMLDivElement>(null)
 
   const analysis = analyze.data ?? null
   const current =
@@ -43,6 +49,15 @@ export default function App() {
   const heatmapData =
     heatmap.data && heatmap.data.analysis_id === shownAnalysis?.analysis_id ? heatmap.data : null
   const hourIso = heatmapData?.hours[hour] ?? null
+
+  // On phones the form fills the bottom sheet, so bring a new analysis into view. Desktop
+  // keeps the form visible for tweaking the trip.
+  const shownId = shownAnalysis?.analysis_id
+  useEffect(() => {
+    if (shownId && !window.matchMedia('(min-width: 768px)').matches) {
+      resultsRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    }
+  }, [shownId])
 
   useEffect(() => {
     if (!playing) return
@@ -68,8 +83,20 @@ export default function App() {
     analyze.error && analyze.error !== dismissedError ? analyze.error.message : null
 
   return (
-    <div className="flex h-full flex-col md:flex-row">
-      <aside className="order-2 flex w-full shrink-0 flex-col overflow-y-auto border-gray-200 bg-gray-50 md:order-1 md:h-full md:w-[380px] md:border-r">
+    <div
+      className="relative h-full md:flex md:flex-row"
+      style={{ '--sheet-h': sheetOpen ? SHEET_OPEN : SHEET_PEEK } as CSSProperties}
+    >
+      <aside className="absolute inset-x-0 bottom-0 z-20 flex h-(--sheet-h) flex-col overflow-y-auto rounded-t-2xl border-gray-200 bg-gray-50 shadow-[0_-8px_24px_rgba(15,23,42,0.18)] transition-[height] duration-300 md:static md:z-auto md:h-full md:w-[380px] md:shrink-0 md:rounded-none md:border-r md:shadow-none md:transition-none">
+        <button
+          type="button"
+          onClick={() => setSheetOpen((open) => !open)}
+          aria-expanded={sheetOpen}
+          className="sticky top-0 z-10 flex w-full flex-col items-center gap-1 bg-gray-50 pt-2 pb-1 text-[11px] text-gray-500 md:hidden"
+        >
+          <span className="h-1.5 w-10 rounded-full bg-gray-300" aria-hidden="true" />
+          {sheetOpen ? 'Show more map' : 'Show more details'}
+        </button>
         <header className="border-b border-gray-200 bg-white px-4 py-3">
           <h1 className="text-lg font-semibold text-gray-900">StormLane</h1>
           <p className="text-xs text-gray-500">
@@ -91,7 +118,7 @@ export default function App() {
           {analyze.isPending && <RouteCardsSkeleton />}
 
           {!analyze.isPending && analysis && (
-            <>
+            <div ref={resultsRef} className="scroll-mt-10 space-y-4">
               <p className="text-xs text-gray-500">
                 {analysis.origin.label} → {analysis.destination.label} · departs{' '}
                 {formatDateTime(analysis.departure_time)} · {formatLbs(analysis.load_lbs)} · every{' '}
@@ -116,7 +143,10 @@ export default function App() {
                   }
                 />
               )}
-            </>
+              <div className="md:hidden">
+                <Legend />
+              </div>
+            </div>
           )}
 
           {!analyze.isPending && !analysis && (
@@ -128,7 +158,7 @@ export default function App() {
         </div>
       </aside>
 
-      <main className="relative order-1 h-[55vh] shrink-0 md:order-2 md:h-full md:flex-1">
+      <main className="absolute inset-0 md:relative md:inset-auto md:h-full md:flex-1">
         <MapView
           analysis={shownAnalysis}
           heatmap={{
@@ -146,7 +176,7 @@ export default function App() {
           }
         />
         {shownAnalysis && (
-          <div className="absolute bottom-8 left-1/2 z-10 -translate-x-1/2">
+          <div className="absolute bottom-[calc(var(--sheet-h)+8px)] left-1/2 z-10 -translate-x-1/2 md:bottom-8">
             <TimeSlider
               hours={heatmapData?.hours ?? []}
               hour={hour}

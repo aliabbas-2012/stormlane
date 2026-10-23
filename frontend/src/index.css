@@ -5,3 +5,14 @@ body,
 #root {
   height: 100%;
 }
+
+/* Phones: the bottom sheet covers the map's lower edge, so move MapLibre's bottom controls
+   (attribution, required by the OpenStreetMap licence) to the top-left. */
+@media (max-width: 767px) {
+  .maplibregl-ctrl-bottom-right {
+    top: 0;
+    bottom: auto;
+    left: 0;
+    right: auto;
+  }
+}

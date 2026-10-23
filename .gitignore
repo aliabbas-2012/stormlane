@@ -20,5 +20,9 @@ frontend/dist/
 .idea/
 .DS_Store
 
-# Local planning/prompt docs
+# Local planning, prompt and recording notes
 *PROMPT*.md
+*LOOM*.md
+
+# Production frontend build copied in for local prod checks
+backend/frontend_dist/

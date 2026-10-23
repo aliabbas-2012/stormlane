@@ -1,0 +1,34 @@
+# Render Blueprint: one Docker web service (API + built frontend) and a managed Postgres.
+# Free plans keep the demo at $0, but the web service sleeps when idle and takes ~30-60 s
+# to wake. For reviewers, switch the web service to a paid instance type in the dashboard.
+services:
+  - type: web
+    name: stormlane
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: stormlane-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "false"
+      - key: WEB_CONCURRENCY
+        value: "2"
+      - key: TOMTOM_API_KEY
+        sync: false # optional: set in the dashboard to enable truck routing
+
+databases:
+  - name: stormlane-db
+    databaseName: stormlane
+    user: stormlane
+    plan: free
+    region: oregon
+    postgresMajorVersion: "17"
